@@ -488,11 +488,14 @@ function renderGrid() {
         <div class="audio-title">${m.title}</div>
         <div class="audio-dur">${m.duration || '—'}</div>
       </div>`;
-    const icon = m.type === 'video' ? '🎬' : '';
+    const isVideo = m.type === 'video';
+    const media = isVideo
+      ? `<video src="${m.file_url || ''}" muted playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;display:block;filter:brightness(0.9)"></video>`
+      : `<img src="${m.file_url || ''}" alt="${m.title}" loading="lazy" onerror="this.style.opacity='0.1'" />`;
     return `
       <div class="tile" onclick="openDetail('${m.id}')">
-        <img src="${m.file_url || ''}" alt="${m.title}" loading="lazy" onerror="this.style.opacity='0.1'" />
-        ${icon ? `<div class="tile-badge">${icon}</div>` : ''}
+        ${media}
+        ${isVideo ? `<div class="tile-badge">🎬</div>` : ''}
         <div class="tile-hover">
           <div class="tile-hover-title">${m.title}</div>
           <div class="tile-hover-date">${formatDate(m.created_at)}</div>
@@ -518,6 +521,9 @@ async function openDetail(id) {
   if (m.type === 'audio') {
     media.className = 'modal-media audio-panel';
     media.innerHTML = `<div class="modal-audio-icon">🎙</div><div style="font-size:13px;color:var(--text-2);text-align:center;">${m.title}</div>${m.file_url ? `<audio class="modal-audio-player" controls src="${m.file_url}"></audio>` : '<div style="font-size:12px;color:var(--text-3);">Kein Audio</div>'}`;
+  } else if (m.type === 'video') {
+    media.className = 'modal-media';
+    media.innerHTML = `<video src="${m.file_url || ''}" controls playsinline style="width:100%;height:100%;object-fit:contain;max-height:70vh;display:block;"></video>`;
   } else {
     media.className = 'modal-media';
     media.innerHTML = `<img src="${m.file_url || ''}" alt="${m.title}" />`;
