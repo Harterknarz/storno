@@ -171,7 +171,110 @@
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--bg3); border: 1px solid var(--border); color: var(--text-2); font-size: 13px; padding: 10px 20px; z-index: 9000; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; letter-spacing: 0.5px; }
   .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  @media (max-width: 600px) { .modal { grid-template-columns: 1fr; } .modal-media { min-height: 240px; } }
+  /* DELETE */
+  .delete-btn { background: transparent; border: 1px solid var(--border); color: var(--text-3); font-family: var(--sans); font-size: 12px; padding: 7px 14px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; align-self: flex-start; }
+  .delete-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+
+  /* ── MOBILE ─────────────────────────────────────────────── */
+  @media (max-width: 600px) {
+
+    /* Login */
+    .login-logo { font-size: 36px; }
+    .login-field { width: 88vw; }
+    .login-name, .login-pw { font-size: 16px; padding: 15px 16px; } /* 16px verhindert Auto-Zoom auf iOS */
+    .login-go { padding: 16px; font-size: 13px; }
+
+    /* Header */
+    header { padding: 0 14px; height: 52px; }
+    .h-logo { font-size: 17px; }
+    .h-btn { padding: 8px 12px; font-size: 10px; }
+    .avatar { width: 26px; height: 26px; font-size: 9px; }
+
+    /* Filter */
+    .filters { padding: 10px 14px; gap: 6px; }
+    .f-btn { padding: 7px 14px; font-size: 12px; } /* größere Touch-Targets */
+
+    /* Grid – 2 Spalten auf sehr kleinen Screens */
+    @media (max-width: 400px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* Detail Modal – alles untereinander */
+    .modal {
+      grid-template-columns: 1fr;
+      max-height: 100vh;
+      height: 100dvh; /* dynamic viewport height – wichtig auf iOS Safari */
+      border-radius: 0;
+      border: none;
+    }
+
+    .modal-media {
+      min-height: 220px;
+      max-height: 40vh;
+    }
+
+    .modal-media img {
+      max-height: 40vh;
+    }
+
+    .modal-body {
+      padding: 18px 16px;
+      gap: 12px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch; /* smooth scroll auf iOS */
+    }
+
+    .modal-title { font-size: 20px; }
+    .modal-desc { font-size: 13px; }
+
+    /* Größere Touch-Targets für Kommentar-Buttons */
+    .c-send, .voice-btn {
+      width: 44px;
+      height: 44px;
+      font-size: 16px;
+    }
+
+    .c-input { font-size: 16px; padding: 11px 12px; } /* 16px verhindert Auto-Zoom */
+
+    .modal-close {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Upload Modal */
+    .up-modal {
+      padding: 24px 18px;
+      max-height: 95vh;
+      border-radius: 0;
+      width: 100%;
+    }
+
+    .up-overlay {
+      align-items: flex-end; /* Modal kommt von unten – natürlicher auf Mobile */
+      padding: 0;
+    }
+
+    .up-title { font-size: 22px; }
+    .f-input, .f-textarea { font-size: 16px; padding: 13px; } /* 16px Auto-Zoom Fix */
+    .f-select { font-size: 16px; }
+
+    .drop-zone { padding: 20px; }
+
+    .btn-acc, .btn-ghost { padding: 15px; font-size: 12px; }
+
+    /* Overlay nimmt ganzen Screen */
+    .overlay { padding: 0; align-items: flex-end; }
+
+    /* Toast weiter oben damit er nicht hinter Tastatur verschwindet */
+    .toast { bottom: 80px; }
+
+    /* Sprachaufnahme Status */
+    .rec-status { font-size: 13px; }
+    .vp-send { padding: 10px 16px; }
+  }
 </style>
 </head>
 <body>
@@ -226,6 +329,7 @@
       </div>
       <div class="modal-title" id="dTitle"></div>
       <div class="modal-desc" id="dDesc"></div>
+      <button class="delete-btn" id="deleteBtn" onclick="deleteMoment()" style="display:none">🗑 Moment löschen</button>
       <div class="comments-area">
         <div class="c-label">Kommentare</div>
         <div id="dComments"></div>
@@ -426,6 +530,10 @@ async function openDetail(id) {
   document.getElementById('dTitle').textContent = m.title;
   document.getElementById('dDesc').textContent = m.description || '';
 
+  // show delete button only for the author
+  const deleteBtn = document.getElementById('deleteBtn');
+  deleteBtn.style.display = m.author === currentUser ? 'block' : 'none';
+
   resetVoiceUI();
   await loadComments(id);
   document.getElementById('detailOverlay').classList.add('on');
@@ -448,6 +556,30 @@ async function loadComments(momentId) {
 
 function closeDetailOuter(e) { if (e.target === document.getElementById('detailOverlay')) closeDetail(); }
 function closeDetail() { stopRecording(); document.getElementById('detailOverlay').classList.remove('on'); document.body.style.overflow = ''; activeId = null; }
+
+async function deleteMoment() {
+  if (!activeId) return;
+  const m = allMoments.find(d => d.id === activeId);
+  if (!m) return;
+  if (!confirm(`"${m.title}" wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) return;
+
+  // delete file from storage
+  if (m.file_url) {
+    const path = m.file_url.split('/media/')[1];
+    if (path) await sb.storage.from('media').remove([path]);
+  }
+
+  // delete comments
+  await sb.from('comments').delete().eq('moment_id', activeId);
+
+  // delete moment
+  const { error } = await sb.from('moments').delete().eq('id', activeId);
+  if (error) { showToast('Löschen fehlgeschlagen 😕'); return; }
+
+  showToast('Moment gelöscht');
+  closeDetail();
+  await loadMoments();
+}
 
 // ── TEXT COMMENT ─────────────────────────────────────────────
 async function submitTextComment() {
