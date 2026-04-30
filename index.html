@@ -290,7 +290,7 @@ const SUPABASE_URL = 'https://bdpziovadbsaemymkgfv.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcHppb3ZhZGJzYWVteW1rZ2Z2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MDIwMDcsImV4cCI6MjA5MzA3ODAwN30.h7VNa1zd0BPuoHktkjxtX-LzxtMMkOu8JH06BgAURxE';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentUser = null;
+let currentUser = localStorage.getItem('storno_user') || null;
 let activeId = null;
 let currentFilter = 'alle';
 let pendingFile = null;
@@ -301,6 +301,16 @@ let recTimerInterval = null;
 let recSeconds = 0;
 let isRecording = false;
 let allMoments = [];
+
+if (currentUser) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').classList.add('on');
+  const initials = { 'Marc': 'Ma', 'Paula': 'Pa', 'Mario': 'Mo' };
+  document.querySelectorAll('.avatar').forEach(a => {
+    if (a.textContent === (initials[currentUser] || currentUser.substring(0,2))) a.classList.add('me');
+  });
+  loadMoments();
+}
 
 function showToast(msg, duration = 2500) {
   const t = document.getElementById('toast');
@@ -328,6 +338,7 @@ async function tryLogin() {
   }
 
   currentUser = name;
+  localStorage.setItem('storno_user', name);
   document.getElementById('loginScreen').classList.add('out');
   setTimeout(() => {
     document.getElementById('loginScreen').style.display = 'none';
@@ -540,9 +551,10 @@ async function saveMemory() {
   if (pendingFile) {
     const ext = pendingFile.name.split('.').pop();
     const folder = type === 'foto' ? 'photos' : type === 'video' ? 'videos' : 'audio';
-    const { error: upErr } = await sb.storage.from('media').upload(`${folder}/${Date.now()}.${ext}`, pendingFile, { contentType: pendingFile.type });
+    const filename = `${folder}/${Date.now()}.${ext}`;
+    const { error: upErr } = await sb.storage.from('media').upload(filename, pendingFile, { contentType: pendingFile.type });
     if (upErr) { showToast('Upload fehlgeschlagen 😕'); btn.disabled = false; btn.textContent = 'Speichern'; return; }
-    const { data: ud } = sb.storage.from('media').getPublicUrl(`${folder}/${Date.now()}.${ext}`);
+    const { data: ud } = sb.storage.from('media').getPublicUrl(filename);
     fileUrl = ud.publicUrl;
   }
 
