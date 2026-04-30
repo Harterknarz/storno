@@ -175,6 +175,17 @@
   .delete-btn { background: transparent; border: 1px solid var(--border); color: var(--text-3); font-family: var(--sans); font-size: 12px; padding: 7px 14px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; align-self: flex-start; }
   .delete-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
 
+  /* LOGOUT */
+  .h-logout { background: transparent; border: 1px solid var(--border); color: var(--text-3); font-size: 16px; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+  .h-logout:hover { border-color: var(--red); color: var(--red); }
+
+  /* VOICE RECORD BUTTON */
+  .voice-record-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(200,169,110,0.06); border: 1px dashed rgba(200,169,110,0.3); color: var(--accent); font-family: var(--sans); font-size: 13px; padding: 12px 16px; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; margin-top: 2px; }
+  .voice-record-btn:hover { background: var(--accent-bg); border-color: var(--accent); }
+  .voice-record-btn.recording { background: var(--red-bg); border-color: var(--red); border-style: solid; color: var(--red); animation: recPulse 1s ease-in-out infinite; }
+  .vrb-icon { font-size: 18px; }
+  .vrb-label { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
+
   /* ── MOBILE ─────────────────────────────────────────────── */
   @media (max-width: 600px) {
 
@@ -300,6 +311,7 @@
       <div class="avatar" id="av-Mario">Mo</div>
     </div>
     <button class="h-btn" onclick="openUpload()">+ Moment</button>
+    <button class="h-logout" onclick="logout()" title="Ausloggen">↩</button>
   </header>
   <div class="filters">
     <button class="f-btn on" onclick="filterBy('alle',this)">Alle</button>
@@ -347,9 +359,12 @@
         </div>
         <div class="add-c-row">
           <input class="c-input" type="text" id="cInput" placeholder="Kommentar schreiben..." />
-          <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()" title="Sprachnotiz">🎙</button>
-          <button class="c-send" onclick="submitTextComment()">↑</button>
+          <button class="c-send" onclick="submitTextComment()" title="Senden">↑</button>
         </div>
+        <button class="voice-record-btn" id="voiceBtn" onclick="toggleRecording()">
+          <span class="vrb-icon">🎙</span>
+          <span class="vrb-label" id="vrbLabel">Sprachkommentar aufnehmen</span>
+        </button>
       </div>
     </div>
   </div>
@@ -457,6 +472,13 @@ async function tryLogin() {
 
 document.getElementById('loginPw').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
 document.getElementById('loginName').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPw').focus(); });
+
+// ── LOGOUT ──────────────────────────────────────────────────
+function logout() {
+  localStorage.removeItem('storno_user');
+  currentUser = null;
+  location.reload();
+}
 
 // ── MOMENTS ──────────────────────────────────────────────────
 async function loadMoments() {
@@ -600,7 +622,13 @@ async function submitTextComment() {
 document.getElementById('cInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitTextComment(); });
 
 // ── VOICE ────────────────────────────────────────────────────
-async function toggleRecording() { if (isRecording) stopRecording(); else await startRecording(); }
+async function toggleRecording() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    await startRecording();
+  }
+}
 
 async function startRecording() {
   try {
@@ -610,7 +638,9 @@ async function startRecording() {
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
     mediaRecorder.onstop = () => { recordingBlob = new Blob(audioChunks, { type: 'audio/webm' }); stream.getTracks().forEach(t => t.stop()); document.getElementById('voicePreview').classList.add('on'); };
     mediaRecorder.start(); isRecording = true; recSeconds = 0;
-    document.getElementById('voiceBtn').classList.add('recording');
+    const vBtn = document.getElementById('voiceBtn');
+    vBtn.classList.add('recording');
+    document.getElementById('vrbLabel').textContent = 'Aufnahme stoppen';
     document.getElementById('recStatus').classList.add('on');
     recTimerInterval = setInterval(() => {
       recSeconds++;
@@ -626,6 +656,8 @@ function stopRecording() {
   isRecording = false; clearInterval(recTimerInterval);
   if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
   document.getElementById('voiceBtn').classList.remove('recording');
+  const lbl = document.getElementById('vrbLabel');
+  if (lbl) lbl.textContent = 'Sprachkommentar aufnehmen';
   document.getElementById('recStatus').classList.remove('on');
 }
 
@@ -634,6 +666,8 @@ function discardVoice() { recordingBlob = null; resetVoiceUI(); }
 function resetVoiceUI() {
   recordingBlob = null; isRecording = false; clearInterval(recTimerInterval); recSeconds = 0;
   document.getElementById('voiceBtn').classList.remove('recording');
+  const lbl = document.getElementById('vrbLabel');
+  if (lbl) lbl.textContent = 'Sprachkommentar aufnehmen';
   document.getElementById('recStatus').classList.remove('on');
   document.getElementById('voicePreview').classList.remove('on');
   document.getElementById('recTimer').textContent = '0:00';
